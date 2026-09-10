@@ -1,16 +1,16 @@
+from django.db.models import Q
+
 from rest_framework import generics, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from django.db.models import Q
-
 from .models import Project, Task
+from .permissions import IsProjectOwnerOrMember
 from .serializers import (
     ProjectSerializer,
     TaskSerializer,
     RegisterSerializer,
 )
-
 
 
 class RegisterView(generics.CreateAPIView):
@@ -23,8 +23,6 @@ class RegisterView(generics.CreateAPIView):
 
 
 
-
-
 class ProjectViewSet(viewsets.ModelViewSet):
 
     queryset = Project.objects.all()
@@ -32,9 +30,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
 
     permission_classes = [
-        IsAuthenticated
+        IsAuthenticated,
+        IsProjectOwnerOrMember
     ]
-
 
 
     def get_queryset(self):
@@ -45,14 +43,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
         ).distinct()
 
 
-
     def perform_create(self, serializer):
 
         serializer.save(
             owner=self.request.user
         )
-
-
 
 
 
@@ -67,15 +62,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     ]
 
 
-
     def get_queryset(self):
 
         return Task.objects.filter(
-            project__owner=self.request.user
-        ).filter(
-            project__members=self.request.user
+            Q(project__owner=self.request.user) |
+            Q(project__members=self.request.user)
         ).distinct()
-
 
 
     def perform_create(self, serializer):
